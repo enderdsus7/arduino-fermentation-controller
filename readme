@@ -1,0 +1,7 @@
+This program is intended for use with an Arduino (atmega328) platform for
+controlling fermentation temperature of beer in my low tech refrigeration
+system.
+
+The hardware required for this include a 2x16 LCD with the serial LCD interface
+PIC from phanderson.com, LM34 temp sensors, 2n2222 transistors, and resistors as
+needed.
