@@ -20,10 +20,11 @@ Fat16 file;
 
 SoftwareSerial lcdSerial = SoftwareSerial(LCD_RX, LCD_TX);
 
-int tempf = 0;
-int samples[8] = {0};
-int maxtemp = -1000;
-int mintemp = 1000;
+int tempf[3] = {0};
+int sample = 0;
+int numSamples = 0;
+int maxtemp[3] = {-1000};
+int mintemp[3] = {1000};
 
 unsigned long oldtime;
 unsigned long startTime;
@@ -41,16 +42,18 @@ void error_P(const char *str)
 }
 
 void printTTY(){
-    Serial.print(tempf,DEC);
-    Serial.print(" Fahrenheit -> ");
-    Serial.print(maxtemp,DEC);
-    Serial.print(" Max, ");
-    Serial.print(mintemp,DEC);
-    Serial.println(" Min ");
+    for(int i=0; i<3; i++){
+        Serial.print(tempf[i],DEC);
+        Serial.print(" Fahrenheit -> ");
+        Serial.print(maxtemp[i],DEC);
+        Serial.print(" Max, ");
+        Serial.print(mintemp[i],DEC);
+        Serial.println(" Min ");
+    }
 }
 
 void printSD(){
-    sprintf(logstring,"%d,%lu",tempf,lastTime);
+    sprintf(logstring,"%d,%d,%d,%lu",tempf[0],tempf[1],tempf[2],lastTime);
     file.println(logstring);  // fat16write example suggests this is a supported method -- need to check arguments.
 
 #if SERIAL_DEBUG
@@ -63,21 +66,33 @@ void printLCD(){
     lcdSerial.print("CUR   MIN   MAX");
 
     lcdSerial.print("?x00?y1");
-    lcdSerial.print(tempf/10,DEC);
+    lcdSerial.print(tempf[1]/10,DEC);
     lcdSerial.print(".");
-    lcdSerial.print(tempf%10,DEC);
+    lcdSerial.print(tempf[1]%10,DEC);
 
     lcdSerial.print("?t");
 
-    lcdSerial.print(mintemp/10,DEC);
+    lcdSerial.print(mintemp[1]/10,DEC);
     lcdSerial.print(".");
-    lcdSerial.print(mintemp%10,DEC);
+    lcdSerial.print(mintemp[1]%10,DEC);
 
     lcdSerial.print("?t");
 
-    lcdSerial.print(maxtemp/10,DEC);
+    lcdSerial.print(maxtemp[1]/10,DEC);
     lcdSerial.print(".");
-    lcdSerial.print(maxtemp%10,DEC);
+    lcdSerial.print(maxtemp[1]%10,DEC);
+}
+
+void sampleThermistor()
+{
+    for(int i = 0; i < 3; i++){
+        sample = ( analogRead(TEMP1+i) * 1.1 * 1000 ) / 1024; // temp in deg F
+        // TODO change to shift -- C. Sklnd - 11-15-09
+        // temp is read out in 10mV/degree F.  We are using analog reference of 1.1V.
+        tempf[i] = tempf[i] + sample;
+    }
+    lastTime = millis();
+    //delay(250);
 }
 
 void setup(){
@@ -124,25 +139,23 @@ void loop(){
     int sampleIndex = 0;
 
     if(millis()-250 >= lastTime) {    
-        samples[sampleIndex] = ( analogRead(TEMP1) * 1.1 * 1000 ) / 1024; // temp in deg F
-        // temp is read out in 10mV/degree F.  We are using analog reference of 1.1V.
-        tempf = tempf + samples[sampleIndex];
-        lastTime = millis();
+        sampleThermistor();
         sampleIndex++;
-        //delay(250);
     }
 
 
     if(sampleIndex>=8) {
-        tempf = tempf/(sampleIndex);  
-        if(lastTime-startTime > 6000) {
-            if(tempf > maxtemp){maxtemp = tempf;}
-            if(tempf < mintemp){mintemp = tempf;}
-            printSD();
-            printLCD(); 
+        for(int i = 0; i < 3; i++){
+            tempf[i] = tempf[i]/sampleIndex;  
+            if(lastTime-startTime > 6000) {
+                if(tempf[i] > maxtemp[i]){maxtemp[i] = tempf[i];}
+                if(tempf[i] < mintemp[i]){mintemp[i] = tempf[i];}
+                printSD();
+                printLCD(); 
+            }
+            sampleIndex=0;
+            tempf[i] = 0;
         }
-        sampleIndex=0;
-        tempf = 0;
     }
 
 
