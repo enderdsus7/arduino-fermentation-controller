@@ -6,6 +6,7 @@
 #include <SoftwareSerial.h>
 #include <Fat16.h>
 #include <Fat16util.h> // use functions to print strings from flash memory
+#include <X10Firecracker.h>
 
 #include "pin_setup.h"
 
@@ -20,18 +21,15 @@ Fat16 file;
 SoftwareSerial lcdSerial = SoftwareSerial(LCD_RX, LCD_TX);
 
 int tempf = 0;
-int samples[8];
+int samples[8] = {0};
 int maxtemp = -1000;
 int mintemp = 1000;
+
 unsigned long oldtime;
-int i = 0;
-
-
 unsigned long startTime;
 unsigned long lastTime;
 
 char logstring[30];
-int result=0;
 
 // store error strings in flash to save RAM
 #define error(s) error_P(PSTR(s))
@@ -54,6 +52,10 @@ void printTTY(){
 void printSD(){
     sprintf(logstring,"%d,%lu",tempf,lastTime);
     file.println(logstring);  // fat16write example suggests this is a supported method -- need to check arguments.
+
+#if SERIAL_DEBUG
+    Serial.println(logstring);
+#endif //only use serial comm for develpment
 }
 
 void printLCD(){
@@ -104,8 +106,6 @@ void setup(){
     startTime = millis();
     lastTime = startTime;
 
-    pinMode(BUTTON, INPUT);
-
     pinMode(LCD_TX, OUTPUT);
     lcdSerial.begin(9600); // setup LCD comm
 
@@ -121,25 +121,27 @@ void setup(){
 
 void loop(){
 
+    int sampleIndex = 0;
+
     if(millis()-250 >= lastTime) {    
-        samples[i] = ( analogRead(TEMP1) * 1.1 * 1000 ) / 1024; // temp in deg F
+        samples[sampleIndex] = ( analogRead(TEMP1) * 1.1 * 1000 ) / 1024; // temp in deg F
         // temp is read out in 10mV/degree F.  We are using analog reference of 1.1V.
-        tempf = tempf + samples[i];
+        tempf = tempf + samples[sampleIndex];
         lastTime = millis();
-        i++;
+        sampleIndex++;
         //delay(250);
     }
 
 
-    if(i>=8) {
-        tempf = tempf/(i);  
+    if(sampleIndex>=8) {
+        tempf = tempf/(sampleIndex);  
         if(lastTime-startTime > 6000) {
             if(tempf > maxtemp){maxtemp = tempf;}
             if(tempf < mintemp){mintemp = tempf;}
             printSD();
             printLCD(); 
         }
-        i=0;
+        sampleIndex=0;
         tempf = 0;
     }
 
