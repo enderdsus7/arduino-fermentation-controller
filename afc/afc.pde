@@ -30,6 +30,8 @@ int sample = 0;
 int numSamples = 0;
 int maxtemp[3] = {-1000,-1000,-1000};
 int mintemp[3] = {1000,1000,1000};
+char* thermistorName = "AFC";   //characters to distinguish between thermistors
+                                //displayed on the LCD
 
 unsigned long oldtime;
 unsigned long startTime;
@@ -67,25 +69,30 @@ void printSD(){
 }
 
 void printLCD(){
+    unsigned char localLcdDisplay = lcdDisplay;
+    char thermName[2] = {0};
+    thermName[0] = thermistorName[localLcdDisplay];
+
     lcdSerial.print("?x00?y0");
-    lcdSerial.print("CUR   MIN   MAX");
+    lcdSerial.print(thermName);
 
-    lcdSerial.print("?x00?y1");
-    lcdSerial.print(tempf[1]/10,DEC);
+    lcdSerial.print("?x02?y0");
+    lcdSerial.print("CUR  MIN   MAX");
+
+    lcdSerial.print("?x01?y1");
+    lcdSerial.print(tempf[localLcdDisplay]/10,DEC);
     lcdSerial.print(".");
-    lcdSerial.print(tempf[1]%10,DEC);
+    lcdSerial.print(tempf[localLcdDisplay]%10,DEC);
 
-    lcdSerial.print("?t");
-
-    lcdSerial.print(mintemp[1]/10,DEC);
+    lcdSerial.print("?x06?y1");
+    lcdSerial.print(mintemp[localLcdDisplay]/10,DEC);
     lcdSerial.print(".");
-    lcdSerial.print(mintemp[1]%10,DEC);
+    lcdSerial.print(mintemp[localLcdDisplay]%10,DEC);
 
-    lcdSerial.print("?t");
-
-    lcdSerial.print(maxtemp[1]/10,DEC);
+    lcdSerial.print("?x12?y1");
+    lcdSerial.print(maxtemp[localLcdDisplay]/10,DEC);
     lcdSerial.print(".");
-    lcdSerial.print(maxtemp[1]%10,DEC);
+    lcdSerial.print(maxtemp[localLcdDisplay]%10,DEC);
 }
 
 void sampleThermistor()
@@ -113,14 +120,15 @@ void displayInterrupt()
     if (interrupt_time - last_interrupt_time > 200)
     {
         lcdDisplay++;
-        if(lcdDisplay > LCD_DISPLAY_COUNT)
+        if(lcdDisplay >= LCD_DISPLAY_COUNT)
         {
             // wrap which display we show.
             lcdDisplay = 0;
         }
 
 #if SERIAL_DEBUG
-        Serial.println("DISP button pushed");
+        Serial.print("DISP button pushed state ");
+        Serial.println(lcdDisplay,DEC);
 #endif
     }
 
@@ -186,10 +194,8 @@ void loop(){
     if(sampleIndex>=8) {
         for(int i = 0; i < 3; i++){
             tempf[i] = tempf[i]/sampleIndex;  
-            if(lastTime-startTime > 6000) {
-                if(tempf[i] > maxtemp[i]){maxtemp[i] = tempf[i];}
-                if(tempf[i] < mintemp[i]){mintemp[i] = tempf[i];}
-            }
+            if(tempf[i] > maxtemp[i]){maxtemp[i] = tempf[i];}
+            if(tempf[i] < mintemp[i]){mintemp[i] = tempf[i];}
         }
         printSD();
         printLCD(); 
