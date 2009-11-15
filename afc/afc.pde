@@ -15,10 +15,15 @@ uint32_t syncTime = 0;     // time of last sync()
 
 #define SERIAL_DEBUG 1 // serial console output for development
 
+#define LCD_DISPLAY_COUNT 3
+
 SdCard card;
 Fat16 file;
 
 SoftwareSerial lcdSerial = SoftwareSerial(LCD_RX, LCD_TX);
+
+// tracks which lcd display we're showing.
+unsigned char lcdDisplay = 0;
 
 int tempf[3] = {0};
 int sample = 0;
@@ -95,7 +100,35 @@ void sampleThermistor()
     //delay(250);
 }
 
+/*************************************************************************
+ *  LCD display switch interrupt handler
+ *      Changes which output is shown on the LCD
+ ************************************************************************/
+void displayInterrupt()
+{
+    static unsigned long last_interrupt_time = 0;
+    unsigned long interrupt_time = millis();
+
+    // If interrupts come faster than 200ms, assume it's a bounce and ignore
+    if (interrupt_time - last_interrupt_time > 200)
+    {
+        lcdDisplay++;
+        if(lcdDisplay > LCD_DISPLAY_COUNT)
+        {
+            // wrap which display we show.
+            lcdDisplay = 0;
+        }
+
+#if SERIAL_DEBUG
+        Serial.println("DISP button pushed");
+#endif
+    }
+
+    last_interrupt_time = interrupt_time;
+}
+
 void setup(){
+
     // initialize the SD card
     if (!card.init()) error("card.init");
 
@@ -132,6 +165,10 @@ void setup(){
 
     Serial.begin(9600); // setup tty comm
     analogReference(INTERNAL); // set A/D to use 1.1V reference instead of 5V for better accuracy
+
+    // init the lcd display button interrupt handler
+    attachInterrupt(DISP_BUTTON, displayInterrupt, RISING);
+    
 }
 
 void loop(){
