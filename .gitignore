@@ -1,0 +1,9 @@
+# build binaries
+*.o
+*.eep
+*.elf
+*.hex
+*.a
+
+# hooray gvim
+*.swp
