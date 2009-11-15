@@ -7,3 +7,6 @@
 
 # hooray gvim
 *.swp
+
+# applet
+applet
