@@ -1,14 +1,24 @@
   // Example to read from LM34 temp sensor, simple circuit
   // pin 1 to 5V, 2 to analog input, 3 to GND.
+  //
+  // Switched to Fat16lib 11/2009
   
   #include <SoftwareSerial.h>
-  #include "SDuFAT.h"
+  #include <Fat16.h>
+  #include <Fat16util.h> // use functions to print strings from flash memory
+
+  #define SYNC_INTERVAL 1000 // mills between calls to sync()
+  uint32_t syncTime = 0;     // time of last sync()
   
   #define TEMP1 1 // analog pin 1
   #define rxPin 4 // any unused pin number is fine
   #define BUTTON 6 // digital pin 6
   #define transistor 7 // output for transistor switch
-  #define txPin 14 // analog pin 0
+  #define txPin 5 // digital pin 5 -- moved from analog 0 to mitigate risk of contaminating A/D on analog bank
+  #define SERIAL_DEBUG 1 // serial console output for development
+  
+  SdCard card;
+  Fat16 file;
   
   SoftwareSerial mySerial = SoftwareSerial(rxPin, txPin);
   
@@ -29,6 +39,15 @@
   char logstring[30];
   int result=0;
   
+  // store error strings in flash to save RAM
+  #define error(s) error_P(PSTR(s))
+  void error_P(const char *str)
+  {
+    PgmPrint("error: ");
+    SerialPrintln_P(str);
+    while(1);
+  }
+  
   void printTTY(){
     Serial.print(tempf,DEC);
     Serial.print(" Fahrenheit -> ");
@@ -40,7 +59,7 @@
   
   void printSD(){
     sprintf(logstring,"%d,%lu",tempf,lastTime);
-    result = SD.println("hola.txt",logstring);
+    file.println(logstring);  // fat16write example suggests this is a supported method -- need to check arguments.
   }
   
   void printLCD(){
@@ -66,6 +85,28 @@
   }
   
   void setup(){
+    // initialize the SD card
+    if (!card.init()) error("card.init");
+  
+    // initialize a FAT16 volume
+    if (!Fat16::init(card)) error("Fat16::init");
+  
+    // create a new file
+    char name[] = "LOGGER00.CSV";
+    for (uint8_t i = 0; i < 100; i++) {
+      name[6] = i/10 + '0';
+      name[7] = i%10 + '0';
+      // O_CREAT - create the file if it does not exist
+      // O_EXCL - fail if the file exists
+      // O_WRITE - open for write only
+      if (file.open(name, O_CREAT | O_EXCL | O_WRITE))break;
+    }
+    if (!file.isOpen()) error ("create");
+    #if SERIAL_DEBUG
+      PgmPrint("Logging to: ");
+      Serial.println(name);
+    #endif //only use serial comm for develpment
+    
     startTime = millis();
     lastTime = startTime;
     pinMode(transistor, OUTPUT);
@@ -124,6 +165,9 @@
     
     old_val = val;
     
-    
+  //don't sync too often - requires 2048 bytes of I/O to SD card
+  if ((millis() - syncTime) <  SYNC_INTERVAL) return;
+  syncTime = millis();
+  if (!file.sync()) error("sync");
   //  delay(500);
   }
