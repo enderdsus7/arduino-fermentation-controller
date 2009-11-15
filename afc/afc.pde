@@ -6,7 +6,7 @@
 #include <SoftwareSerial.h>
 #include <Fat16.h>
 #include <Fat16util.h> // use functions to print strings from flash memory
-#include <X10Firecracker.h>
+//#include <X10Firecracker.h>
 
 #include "pin_setup.h"
 
@@ -23,8 +23,8 @@ SoftwareSerial lcdSerial = SoftwareSerial(LCD_RX, LCD_TX);
 int tempf[3] = {0};
 int sample = 0;
 int numSamples = 0;
-int maxtemp[3] = {-1000};
-int mintemp[3] = {1000};
+int maxtemp[3] = {-1000,-1000,-1000};
+int mintemp[3] = {1000,1000,1000};
 
 unsigned long oldtime;
 unsigned long startTime;
@@ -96,6 +96,11 @@ void sampleThermistor()
 }
 
 void setup(){
+#if SERIAL_DEBUG
+    Serial.begin(9600);
+    Serial.println();
+#endif //only use serial comm for develpment 
+
     // initialize the SD card
     if (!card.init()) error("card.init");
 
@@ -120,7 +125,7 @@ void setup(){
 
     startTime = millis();
     lastTime = startTime;
-
+    
     pinMode(LCD_TX, OUTPUT);
     lcdSerial.begin(9600); // setup LCD comm
 
@@ -130,19 +135,17 @@ void setup(){
     lcdSerial.print("?f");
     delay(10);
 
-    Serial.begin(9600); // setup tty comm
     analogReference(INTERNAL); // set A/D to use 1.1V reference instead of 5V for better accuracy
 }
 
 void loop(){
 
-    int sampleIndex = 0;
+    static int sampleIndex = 0;
 
     if(millis()-250 >= lastTime) {    
         sampleThermistor();
         sampleIndex++;
     }
-
 
     if(sampleIndex>=8) {
         for(int i = 0; i < 3; i++){
@@ -150,9 +153,11 @@ void loop(){
             if(lastTime-startTime > 6000) {
                 if(tempf[i] > maxtemp[i]){maxtemp[i] = tempf[i];}
                 if(tempf[i] < mintemp[i]){mintemp[i] = tempf[i];}
-                printSD();
-                printLCD(); 
             }
+        }
+        printSD();
+        printLCD(); 
+        for(int i=0; i < 3; i++){
             sampleIndex=0;
             tempf[i] = 0;
         }
