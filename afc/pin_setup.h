@@ -14,7 +14,7 @@
 // digital pin 2 and pin 3 are interrupt pins
 #define LCD_RX 4    // dummy pin for soft serial to 16x2 lcd
 #define LCD_TX 5    // xmit pin for soft serial to 16x2 lcd
-#define X10DTR 7    // X10 firecracker pin 4 (pin 5 is GND)
+#define X10DTR 9    // X10 firecracker pin 4 (pin 5 is GND)
 #define X10RTS 8    // X10 firecracker pin 7 (pin 5 is GND)
 
 #endif
